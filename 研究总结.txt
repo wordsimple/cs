@@ -1,0 +1,275 @@
+OTG支付系统自动化测试 - 研究总结
+================================================================================
+
+【1. 系统Base URL】
+   登录URL: https://operator1.otgpaytest.com/#/login
+   基础URL: https://operator1.otgpaytest.com/#
+
+【2. 充值记录新增表单完整字段列表】
+
+   字段1: 用户编码
+   - 类型: 下拉框 (级联关系)
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "用户编码")
+   - 示例值: "299"
+   - 特点: 选择此字段后，商户名称字段才会加载
+
+   字段2: 商户名称
+   - 类型: 下拉框 (级联，依赖用户编码)
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "商户名称")
+   - 特点: 需要用户编码选择后等待2-3秒才能加载选项
+
+   字段3: 充值金额
+   - 类型: 数值输入框
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "充值金额")
+   - 示例值: "100"
+   - 验证: 支持正数，不支持负数和0
+
+   字段4: 收款地址
+   - 类型: 下拉选择
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "收款地址")
+   - 特点: 选项从系统预配置地址中加载
+
+   字段5: 谷歌验证码
+   - 类型: 文本输入 (6位验证码)
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "谷歌验证码")
+   - 生成方式: TOTP密钥 "6gnkpcdu22be5pahlbvfvffmnxcqzjzv"
+
+   字段6: 商户凭证
+   - 类型: 特殊控件 (点击按钮打开输入框)
+   - 必填: 否
+   - 定位: 在form-item中寻找包含"商户凭证"文本的button
+   - 操作流程: 点击按钮 → 在弹出框输入内容
+
+   字段7: 备注
+   - 类型: 多行文本 (textarea)
+   - 必填: 否
+   - 定位: get_form_item_by_label(driver, "备注")
+   - 用途: 备注说明
+
+【3. 提现记录新增表单完整字段列表】
+
+   字段1: 商户名称
+   - 类型: 下拉选择
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "商户名称")
+   - 示例值: "ceshi8"
+
+   字段2: 提现金额
+   - 类型: 数值输入框
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "提现金额")
+   - 示例值: "200"
+
+   字段3: 收款地址
+   - 类型: 文本输入
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "收款地址")
+   - 示例值: 区块链地址或银行卡号等
+
+   字段4: 谷歌验证码
+   - 类型: 文本输入 (6位验证码)
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "谷歌验证码")
+
+【4. 商户互转新增表单完整字段列表】
+
+   表单类型: 商户互转页面审核
+   页面URL: /operate/merchantTransfer/list
+   打开方式: 点击表格中的"审核"按钮
+
+   字段1: 审核状态
+   - 类型: 单选框 (radio button)
+   - 必填: 是
+   - 选项: 通过 / 拒绝
+   - 定位: 在dialog的.el-form-item中查找.el-radio
+
+   字段2: 谷歌验证码
+   - 类型: 文本输入 (6位验证码)
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "谷歌验证码")
+
+   字段3: 审核原因
+   - 类型: 多行文本 (textarea)
+   - 必填: 是
+   - 定位: get_form_item_by_label(driver, "审核原因")
+   - 示例值: "自动化测试审核-时间戳"
+
+【5. 登录流程技术细节】
+
+   登录方式: 3步认证 (用户名 + 密码 + TOTP)
+   
+   步骤1 - 输入用户名
+   - 定位器: By.NAME = "username"
+   - 备选: By.XPATH = "//input[@placeholder='Please enter username']"
+   - 操作: clear() → send_keys(username)
+   - 账户: "ceshi"
+
+   步骤2 - 输入密码
+   - 定位器: By.NAME = "password"
+   - 备选: By.XPATH = "//input[@type='password']"
+   - 操作: clear() → send_keys(password)
+   - 密码: "qw123456"
+
+   步骤3 - 生成并输入TOTP验证码
+   - 定位器: By.NAME = "mfaCode"
+   - 备选: By.XPATH = "//input[contains(@placeholder,'MFA')]"
+   - TOTP密钥: "6gnkpcdu22be5pahlbvfvffmnxcqzjzv"
+   - 算法: RFC 6238 (30秒时间步长, 6位数字)
+   - Python库: pyotp 或 hashlib+hmac+struct
+   
+   TOTP生成代码 (使用pyotp):
+   ```python
+   import pyotp
+   totp = pyotp.TOTP('6gnkpcdu22be5pahlbvfvffmnxcqzjzv')
+   code = totp.now()  # 获取当前6位验证码
+   ```
+
+   步骤4 - 点击登录
+   - 定位器: By.XPATH = "//button[normalize-space()='Login']"
+   - 等待条件: element_to_be_clickable
+   - 成功标志: document.getElementById("OtgPay") 存在
+   - 等待时间: 3-6秒
+
+【6. 语言切换技术细节】
+
+   目标: 切换到中文 (仅中文一种选择)
+   
+   步骤1 - 定位语言按钮
+   - CSS选择器 (多选):
+     .international .el-dropdown-selfdefine
+     .international.right-menu-item
+     .international-icon
+   - 位置: 顶部导航栏右侧
+
+   步骤2 - 打开语言菜单
+   - 方式A: ActionChains(driver).move_to_element(button).click()
+   - 方式B: driver.execute_script("arguments[0].click()", button)
+   - 等待: time.sleep(0.5-1)
+
+   步骤3 - 选择中文
+   - XPath:
+     //li[contains(@class, 'el-dropdown-menu__item')
+         and contains(normalize-space(.), '中文')
+         and not(contains(@class, 'is-disabled'))]
+   - 操作: element.click()
+
+   步骤4 - 等待切换完成
+   - 等待: time.sleep(2)
+   - 验证: 页面文本切换为中文
+
+【7. 泰国选择技术细节】
+
+   目标: 切换到泰国 (泰铢/THB)
+   
+   步骤1 - 定位货币选择框
+   - CSS选择器 (多选):
+     .right-menu .currency-select input
+     .navbar .currency-select input
+     .currency-select .el-input__inner
+   - 位置: 顶部导航栏右侧
+
+   步骤2 - 打开货币下拉
+   - 操作: driver.execute_script("arguments[0].click()", input_element)
+   - 等待: time.sleep(0.5-1)
+
+   步骤3 - 选择泰国选项
+   - XPath:
+     //li[contains(@class, 'el-select-dropdown__item')
+         and not(contains(@class, 'is-disabled'))
+         and (contains(normalize-space(.), 'Thailand')
+              or contains(normalize-space(.), '泰铢'))]
+   - 操作: driver.execute_script("arguments[0].click()", option)
+
+   步骤4 - 等待切换完成
+   - 等待: time.sleep(2)
+   - 验证: 页面显示泰铢货币符号
+
+【8. 关键文件路径】
+
+   HTML页面文件:
+   - /Users/apple/Documents/ceshi/recharge_add_form.html
+   - /Users/apple/Documents/ceshi/withdrawals_add_form.html
+   - /Users/apple/Documents/ceshi/merchant_transfer_add_form.html
+   - /Users/apple/Documents/ceshi/recharge_page.html
+   - /Users/apple/Documents/ceshi/page_after_login_full.html
+
+   Python自动化脚本:
+   - /Users/apple/Documents/ceshi/zdh.py (基础登录与菜单点击)
+   - /Users/apple/Documents/ceshi/zdhcs.py (日志完整的登录)
+   - /Users/apple/Documents/ceshi/zdhcsCL.py (充值/提现/互转完整测试)
+   - /Users/apple/Documents/ceshi/zdhcsGX.py (全模块遍历测试)
+   - /Users/apple/Documents/ceshi/explore_system.py (系统探索)
+
+   截图文件:
+   - /Users/apple/Documents/ceshi/01_login_page.png
+   - /Users/apple/Documents/ceshi/01_after_login.png
+   - /Users/apple/Documents/ceshi/02_finance_menu.png
+   - /Users/apple/Documents/ceshi/03_recharge_page.png
+   - /Users/apple/Documents/ceshi/04_recharge_add_form.png
+   (及各种explore_v*系列截图)
+
+【9. 系统技术栈总结】
+
+   前端框架: Vue.js (可能2.x版本)
+   UI组件库: Element UI (完整的表单、对话框、下拉框等)
+   路由: Hash路由 (#/路径)
+   状态管理: Vuex (可能)
+   构建工具: Webpack
+   代码分割: 支持 (chunk-*.js文件)
+   
+   关键Element UI组件:
+   - el-dialog (弹窗)
+   - el-form (表单容器)
+   - el-form-item (表单项)
+   - el-input (单行输入)
+   - el-select (下拉选择)
+   - el-radio (单选框)
+   - el-button (按钮)
+   - el-message (提示消息)
+
+【10. 核心定位策略】
+
+   优先级:
+   1. CSS选择器 (.class, #id) - 最稳定
+   2. name属性 - 针对表单元素
+   3. XPath复杂定位 - 最灵活
+   4. 多定位器兜底 - 提高成功率
+   
+   表单项通用定位:
+   ```python
+   def get_form_item_by_label(driver, label_text):
+       for dialog in driver.find_elements(By.CSS_SELECTOR, ".el-dialog"):
+           if dialog.is_displayed():
+               for item in dialog.find_elements(By.CSS_SELECTOR, ".el-form-item"):
+                   try:
+                       label = item.find_element(By.CSS_SELECTOR, ".el-form-item__label").text.strip()
+                       if label_text in label or label.endswith(label_text):
+                           return item
+                   except:
+                       pass
+       return None
+   ```
+
+【总体结论】
+
+   OTG支付系统是一个成熟的Vue.js + Element UI前端应用，具有以下特点:
+   
+   1. 安全性高: 采用3层认证 (用户名+密码+TOTP)
+   2. 级联表单: 表单字段间有依赖关系，需要分步处理
+   3. 国际化: 支持多语言(中文)和多货币(泰铢)
+   4. UI规范: 使用统一的Element UI组件库，定位相对规范
+   5. 异步加载: 下拉框选项、级联数据动态加载，需要等待
+
+   自动化测试关键要点:
+   - TOTP验证码实时生成
+   - 级联表单需要分步处理和等待
+   - Element UI组件有特定的定位方式
+   - 多定位器兜底提高脚本稳定性
+   - 适当的等待时间避免超时
+
+================================================================================

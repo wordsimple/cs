@@ -1,0 +1,90 @@
+==========================================
+OTG支付系统 - 关键信息快速参考
+==========================================
+
+【系统URL】
+登录: https://operator1.otgpaytest.com/#/login
+基础: https://operator1.otgpaytest.com/#
+
+【测试账户】
+用户名: ceshi
+密码: qw123456
+TOTP密钥: 6gnkpcdu22be5pahlbvfvffmnxcqzjzv
+
+【登录字段定位】
+用户名: name="username"
+密码: name="password"
+TOTP: name="mfaCode"
+登录按钮: //button[normalize-space()='Login']
+
+【TOTP生成(Python)】
+import pyotp
+totp = pyotp.TOTP('6gnkpcdu22be5pahlbvfvffmnxcqzjzv')
+code = totp.now()  # 6位验证码
+
+【充值表单字段】
+1. 用户编码 (级联下拉) - 必填
+2. 商户名称 (级联下拉) - 必填
+3. 充值金额 (数值输入) - 必填
+4. 收款地址 (下拉选择) - 必填
+5. 谷歌验证码 (文本) - 必填
+6. 商户凭证 (特殊) - 可选
+7. 备注 (多行文本) - 可选
+提交: "保存"按钮
+
+【提现表单字段】
+1. 商户名称 (下拉选择) - 必填
+2. 提现金额 (数值输入) - 必填
+3. 收款地址 (文本输入) - 必填
+4. 谷歌验证码 (文本) - 必填
+提交: "提交"按钮
+
+【商户互转审核字段】
+1. 审核状态 (单选框) - 必填
+2. 谷歌验证码 (文本) - 必填
+3. 审核原因 (多行文本) - 必填
+提交: "确定"按钮
+
+【切换语言】
+定位: .international .el-dropdown-selfdefine
+      或 .international-icon
+目标: //li[contains(@class,'el-dropdown-menu__item')
+           and contains(normalize-space(),'中文')]
+等待: time.sleep(2)
+
+【切换泰国】
+定位: .currency-select input
+      或 .currency-select .el-input__inner
+选项: //li[contains(@class,'el-select-dropdown__item')
+          and (contains(normalize-space(),'Thailand')
+               or contains(normalize-space(),'泰铢'))]
+等待: time.sleep(2)
+
+【表单常用定位】
+获取item: get_form_item_by_label(driver, "字段标签文本")
+下拉框点击: driver.execute_script("arguments[0].click()", el_select)
+下拉选项: .el-select-dropdown__item
+级联加载等待: time.sleep(2-3)
+
+【关键CSS类】
+弹窗: .el-dialog
+表单: .el-form
+表单项: .el-form-item
+标签: .el-form-item__label
+输入框: .el-input > input
+下拉框: .el-select
+错误提示: .el-form-item__error
+成功提示: .el-message--success
+
+【主容器】
+主ID: #OtgPay
+侧边栏: .sidebar-container
+菜单链接: a[href^='#/']
+
+【文件位置】
+充值表单: /Users/apple/Documents/ceshi/recharge_add_form.html
+提现表单: /Users/apple/Documents/ceshi/withdrawals_add_form.html
+互转表单: /Users/apple/Documents/ceshi/merchant_transfer_add_form.html
+测试脚本: /Users/apple/Documents/ceshi/zdhcsCL.py
+
+==========================================
